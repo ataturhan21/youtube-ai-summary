@@ -5,10 +5,10 @@
   if (window.__ytsLoaded) return;
   window.__ytsLoaded = true;
 
-  const { AIS, PROMPTS, DEFAULTS, parseTime, formatTranscript, buildPrompt } = self.YTS;
+  const { AIS, PROMPTS, DEFAULTS, parseTime, parseSegmentText, formatTranscript, buildPrompt } = self.YTS;
   const SEGMENTS = "ytd-transcript-segment-renderer, transcript-segment-view-model";
+  const CHAPTERS = "ytd-transcript-section-header-renderer, transcript-section-header-view-model";
   const TRANSCRIPT_BUTTON = "ytd-video-description-transcript-section-renderer button";
-  const TRANSCRIPT_PANEL = 'ytd-engagement-panel-section-list-renderer[target-id="engagement-panel-searchable-transcript"]';
 
   let settings = { ...DEFAULTS };
   let busy = false;
@@ -45,18 +45,52 @@
 
   // ---------- transcript ----------
 
-  // YouTube keeps several transcript lists in the page: a hidden one from the previous video and
-  // duplicates of the current one. Read only the first visible list.
+  // YouTube hides a closed transcript panel without emptying it, so lines count only while their
+  // panel is open; otherwise a previous video's transcript could be read.
+  const inOpenPanel = (node) => {
+    const panel = node.closest("ytd-engagement-panel-section-list-renderer");
+    return !node.closest("[hidden]") && (!panel || panel.getAttribute("visibility") !== "ENGAGEMENT_PANEL_VISIBILITY_HIDDEN");
+  };
+  const visibleSegments = () => [...document.querySelectorAll(SEGMENTS)].filter(inOpenPanel);
+
+  // Two layouts exist. The classic one keeps every line in a ytd-transcript-segment-list-renderer,
+  // and the page also holds a hidden list from the previous video plus duplicates of the current
+  // one, so read only the first visible list. The newer one wraps each line on its own, so climb
+  // from the first line to the ancestor that holds the most lines.
   function transcriptRoot() {
     const lists = [...document.querySelectorAll("ytd-transcript-segment-list-renderer")]
-      .filter((list) => !list.closest("[hidden]") && list.querySelector(SEGMENTS));
+      .filter((list) => inOpenPanel(list) && list.querySelector(SEGMENTS));
     if (lists.length) return lists[0];
-    const first = [...document.querySelectorAll(SEGMENTS)].find((s) => !s.closest("[hidden]"));
-    return first ? first.parentElement : null;
+    const first = visibleSegments()[0];
+    if (!first) return null;
+    const panel = first.closest("ytd-engagement-panel-section-list-renderer");
+    let best = first;
+    let bestCount = 1;
+    for (let node = first.parentElement; node && node !== panel; node = node.parentElement) {
+      const count = node.querySelectorAll(SEGMENTS).length;
+      if (count > bestCount) {
+        best = node;
+        bestCount = count;
+      }
+    }
+    return best;
+  }
+
+  function transcriptPanel() {
+    return transcriptRoot()?.closest("ytd-engagement-panel-section-list-renderer") || null;
   }
 
   function firstSegmentText() {
     return transcriptRoot()?.querySelector(SEGMENTS)?.textContent || "";
+  }
+
+  function readSegment(node) {
+    const timeEl = node.querySelector('.segment-timestamp, [class*="SegmentViewModelTimestamp"]:not([class*="A11y"])');
+    const textEl = node.querySelector('.segment-text, [role="text"]');
+    const time = timeEl?.textContent.trim() || "";
+    const text = textEl?.textContent || "";
+    if (/^\d+(?::\d{2}){1,2}$/.test(time) && text.trim()) return { time, text };
+    return parseSegmentText(node.innerText); // unknown markup: work from the visible text
   }
 
   function readTranscript() {
@@ -64,25 +98,20 @@
     if (!root) return [];
     const items = [];
     const seen = new Set();
-    for (const node of root.querySelectorAll(`ytd-transcript-section-header-renderer, ${SEGMENTS}`)) {
-      if (node.tagName === "YTD-TRANSCRIPT-SECTION-HEADER-RENDERER") {
+    for (const node of root.querySelectorAll(`${CHAPTERS}, ${SEGMENTS}`)) {
+      if (node.closest("[hidden]")) continue;
+      if (node.matches(CHAPTERS)) {
         const title = node.textContent.replace(/\s+/g, " ").trim();
         if (title) items.push({ type: "chapter", title });
         continue;
       }
-      let time = node.querySelector(".segment-timestamp")?.textContent || "";
-      let text = node.querySelector(".segment-text")?.textContent || "";
-      if (!time || !text) {
-        // Newer transcript markup: "0:04 Good morning…"
-        const m = node.innerText.trim().match(/^(\d+(?::\d{2}){1,2})\s+([\s\S]*)$/);
-        if (m) [, time, text] = m;
-      }
-      const key = `${time.trim()}|${text.trim()}`;
-      if (seen.has(key)) continue;
+      const { time, text } = readSegment(node);
+      const key = `${time}|${text.trim()}`;
+      if (!text.trim() || seen.has(key)) continue;
       seen.add(key);
       items.push({ type: "line", start: parseTime(time), text });
     }
-    return items.filter((i) => i.type === "chapter" || i.text.trim());
+    return items;
   }
 
   async function openTranscriptPanel() {
@@ -92,7 +121,7 @@
       button = await waitFor(() => document.querySelector(TRANSCRIPT_BUTTON), 3000);
     }
     if (!button) return false;
-    const stale = firstSegmentText();
+    const stale = document.querySelector(SEGMENTS)?.textContent || "";
     button.click();
     if (!(await waitFor(firstSegmentText, 10000))) return false;
     // A panel left over from the previous video can still hold its lines for a moment.
@@ -101,22 +130,22 @@
     return true;
   }
 
-  function closeTranscriptPanel() {
-    const panel = document.querySelector(TRANSCRIPT_PANEL);
+  function closeTranscriptPanel(panel) {
     panel?.querySelector('#visibility-button button, button[aria-label="Close transcript"]')?.click();
   }
 
   async function getTranscript(id) {
     if (cache.has(id)) return cache.get(id);
-    const panel = document.querySelector(TRANSCRIPT_PANEL);
-    const alreadyOpen = panel && panel.getAttribute("visibility") === "ENGAGEMENT_PANEL_VISIBILITY_EXPANDED"
-      && firstSegmentText();
+    const alreadyOpen = Boolean(transcriptRoot());
     if (!alreadyOpen && !(await openTranscriptPanel())) return null;
+    const panel = transcriptPanel();
     const items = readTranscript();
-    if (!alreadyOpen) closeTranscriptPanel();
+    if (!alreadyOpen) closeTranscriptPanel(panel);
     if (items.length && videoId() === id) cache.set(id, items);
     return items.length ? items : null;
   }
+
+  if (window.__YTS_TEST__) window.__ytsTest = { readTranscript, getTranscript };
 
   function videoInfo() {
     const id = videoId();
@@ -146,6 +175,16 @@
     busy = true;
     render("Reading transcript…");
     try {
+      // Right after moving to another video, YouTube still shows the previous one for a moment.
+      const id = videoId();
+      const ready = await waitFor(() => {
+        const page = document.querySelector("ytd-watch-flexy");
+        return !page || page.getAttribute("video-id") === id;
+      }, 8000);
+      if (!ready) {
+        toast("YouTube is still loading this video. Try again in a moment.");
+        return;
+      }
       const video = videoInfo();
       const items = await getTranscript(video.id);
       const transcript = items ? formatTranscript(items, { timestamps: settings.timestamps }) : "";
