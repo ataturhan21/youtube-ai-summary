@@ -1,0 +1,11 @@
+{
+  "name": "youtube-ai-summary",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Chrome extension that sends a YouTube video's transcript to an AI chat with a summary prompt.",
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "check": "node -e \"JSON.parse(require('fs').readFileSync('extension/manifest.json'))\" && node --check extension/shared.js && node --check extension/youtube.js && node --check extension/ai.js && node --check extension/background.js && node --check extension/popup.js"
+  },
+  "license": "MIT"
+}

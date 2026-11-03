@@ -1,0 +1,63 @@
+{
+  "manifest_version": 3,
+  "name": "YouTube AI Summary",
+  "short_name": "YT AI Summary",
+  "version": "1.0.0",
+  "description": "One click sends a YouTube video's transcript to ChatGPT, Claude, Gemini, Grok, DeepSeek or Perplexity with a summary prompt.",
+  "permissions": ["storage", "scripting"],
+  "host_permissions": [
+    "https://www.youtube.com/*",
+    "https://chatgpt.com/*",
+    "https://chat.openai.com/*",
+    "https://claude.ai/*",
+    "https://gemini.google.com/*",
+    "https://grok.com/*",
+    "https://chat.deepseek.com/*",
+    "https://www.perplexity.ai/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.youtube.com/*"],
+      "js": ["shared.js", "youtube.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://chatgpt.com/*",
+        "https://chat.openai.com/*",
+        "https://claude.ai/*",
+        "https://gemini.google.com/*",
+        "https://grok.com/*",
+        "https://chat.deepseek.com/*",
+        "https://www.perplexity.ai/*"
+      ],
+      "js": ["shared.js", "ai.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "commands": {
+    "summarize": {
+      "suggested_key": { "default": "Alt+Shift+S" },
+      "description": "Summarize the YouTube video in the current tab"
+    }
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "YouTube AI Summary",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}
