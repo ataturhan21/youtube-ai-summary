@@ -72,6 +72,19 @@
     return parts.reduce((total, n) => total * 60 + n, 0);
   }
 
+  // A transcript line's visible text when its markup is unknown, e.g.
+  // "0:08\n8 seconds\npowerful that…": the time, then a screen-reader label, then the words.
+  // The label ("8 seconds", "1 minute, 5 seconds", "1 dakika 5 saniye") is pairs of a number and a
+  // unit word, so drop lines of that shape that come straight after the time.
+  function parseSegmentText(innerText) {
+    const lines = String(innerText || "").split("\n").map((l) => l.trim()).filter(Boolean);
+    const i = lines.findIndex((l) => /^\d+(?::\d{2}){1,2}$/.test(l));
+    if (i < 0) return { time: "", text: lines.join(" ") };
+    let j = i + 1;
+    while (j < lines.length - 1 && /^(\d+\s+[^\d\s,]+,?\s*)+$/u.test(lines[j])) j++;
+    return { time: lines[i], text: lines.slice(j).join(" ") };
+  }
+
   // items: [{ type: "chapter", title } | { type: "line", start: seconds, text }]
   // Lines are merged into paragraphs of about `chunkSeconds`, each with one timestamp,
   // which keeps the prompt short without losing where things were said.
@@ -124,7 +137,7 @@
     return AIS.find((a) => a.hosts.includes(host)) || null;
   }
 
-  const api = { AIS, PROMPTS, DEFAULTS, formatTime, parseTime, formatTranscript, buildPrompt, aiForHost };
+  const api = { AIS, PROMPTS, DEFAULTS, formatTime, parseTime, parseSegmentText, formatTranscript, buildPrompt, aiForHost };
   root.YTS = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof self !== "undefined" ? self : globalThis);
