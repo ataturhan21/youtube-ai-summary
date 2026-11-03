@@ -1,6 +1,6 @@
 {
   "name": "youtube-ai-summary",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "description": "Chrome extension that sends a YouTube video's transcript to an AI chat with a summary prompt.",
   "scripts": {

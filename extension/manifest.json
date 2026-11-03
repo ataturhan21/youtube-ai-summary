@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "YouTube AI Summary",
   "short_name": "YT AI Summary",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "One click sends a YouTube video's transcript to ChatGPT, Claude, Gemini, Grok, DeepSeek or Perplexity with a summary prompt.",
   "permissions": ["storage", "scripting"],
   "host_permissions": [
