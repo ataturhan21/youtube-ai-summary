@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { formatTime, parseTime, formatTranscript, buildPrompt, aiForHost, DEFAULTS, AIS } = require("../extension/shared.js");
+const { formatTime, parseTime, parseSegmentText, formatTranscript, buildPrompt, aiForHost, DEFAULTS, AIS } = require("../extension/shared.js");
 
 test("formatTime and parseTime round-trip", () => {
   assert.equal(formatTime(4), "0:04");
@@ -57,4 +57,19 @@ test("aiForHost finds each site and every AI has an editor selector", () => {
   assert.equal(aiForHost("chat.openai.com").id, "chatgpt");
   assert.equal(aiForHost("example.com"), null);
   for (const ai of AIS) assert.ok(ai.editor.length && ai.url.startsWith("https://"));
+});
+
+// Regression for #3: YouTube's newer transcript layout puts a screen-reader label between the
+// time and the words, and it used to end up in the prompt ("[0:00] 0 seconds What if…").
+test("parseSegmentText drops the screen-reader time label", () => {
+  assert.deepEqual(parseSegmentText("0:00\n0 seconds\nWhat if tomorrow you woke up"), { time: "0:00", text: "What if tomorrow you woke up" });
+  assert.deepEqual(parseSegmentText("1:05\n1 minute, 5 seconds\nHello there"), { time: "1:05", text: "Hello there" });
+  assert.deepEqual(parseSegmentText("1:02:03\n1 hour, 2 minutes, 3 seconds\nLate"), { time: "1:02:03", text: "Late" });
+  assert.deepEqual(parseSegmentText("0:08\n8 saniye\nTürkçe metin"), { time: "0:08", text: "Türkçe metin" });
+});
+
+test("parseSegmentText keeps text that only looks like a label when nothing follows it", () => {
+  assert.deepEqual(parseSegmentText("0:10\n5 minutes"), { time: "0:10", text: "5 minutes" });
+  assert.deepEqual(parseSegmentText("0:04 Good morning"), { time: "", text: "0:04 Good morning" });
+  assert.deepEqual(parseSegmentText("0:04\nGood morning.\nSecond line"), { time: "0:04", text: "Good morning. Second line" });
 });
