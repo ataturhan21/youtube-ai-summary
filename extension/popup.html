@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>YouTube AI Summary</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header>
+    <img src="icons/icon32.png" alt="" width="24" height="24">
+    <h1>YouTube AI Summary</h1>
+  </header>
+
+  <button id="run" class="primary">Summarize this video</button>
+  <p id="hint" class="hint" role="status" aria-live="polite"></p>
+
+  <label class="row">
+    <span><strong>Send to</strong></span>
+    <select id="ai"></select>
+  </label>
+
+  <label class="row">
+    <span><strong>Default prompt</strong><small>Used by the main button</small></span>
+    <select id="prompt"></select>
+  </label>
+
+  <label class="row">
+    <span><strong>Send automatically</strong><small>Off: the prompt waits in the chat box</small></span>
+    <input type="checkbox" id="autoSend" class="switch">
+  </label>
+
+  <label class="row">
+    <span><strong>Timestamps</strong><small>Adds [m:ss] so answers can point to moments</small></span>
+    <input type="checkbox" id="timestamps" class="switch">
+  </label>
+
+  <label class="stack">
+    <strong>Answer language</strong>
+    <small>Leave empty to let the AI decide</small>
+    <input type="text" id="language" placeholder="e.g. English, Türkçe, Español">
+  </label>
+
+  <label class="stack">
+    <strong>My prompt</strong>
+    <small>Shows as “My prompt” in the ▾ menu</small>
+    <textarea id="customPrompt" rows="3"></textarea>
+  </label>
+
+  <footer>Shortcut: <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd> on a video. Transcripts go only to the AI site you pick, in your own browser.</footer>
+
+  <script src="shared.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

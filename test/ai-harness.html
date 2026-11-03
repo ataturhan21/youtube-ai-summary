@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>AI hand-off harness</title>
+  <style>
+    body { font: 14px system-ui, sans-serif; margin: 20px; max-width: 640px; }
+    #editor { min-height: 60px; border: 1px solid #999; padding: 6px; white-space: pre-wrap; }
+    textarea { width: 100%; min-height: 60px; }
+  </style>
+</head>
+<body>
+  <!--
+    Mock AI chat page for extension/ai.js. Serve the repo root and open:
+      test/ai-harness.html?mode=rich      ProseMirror-like editor that handles paste
+      test/ai-harness.html?mode=textarea  plain textarea (like DeepSeek)
+      test/ai-harness.html?mode=enter     textarea with no send button that sends on Enter
+      test/ai-harness.html?mode=rich&autoSend=0
+    window.result holds what was inserted and whether it was sent.
+  -->
+  <h1>AI hand-off harness</h1>
+  <div id="slot"></div>
+  <button id="send" type="button" disabled>Send</button>
+
+  <script>
+    const params = new URLSearchParams(location.search);
+    const mode = params.get("mode") || "rich";
+    const autoSend = params.get("autoSend") !== "0";
+    window.result = { inserted: null, sent: false };
+
+    const slot = document.getElementById("slot");
+    const send = document.getElementById("send");
+    if (mode === "enter") {
+      send.remove();
+      slot.innerHTML = '<textarea id="editor" name="prompt"></textarea>';
+      const ta = document.getElementById("editor");
+      ta.addEventListener("input", () => { window.result.inserted = ta.value; });
+      ta.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); window.result.sent = true; } });
+    } else if (mode === "textarea") {
+      slot.innerHTML = '<textarea id="editor"></textarea>';
+      const ta = document.getElementById("editor");
+      ta.addEventListener("input", () => { send.disabled = !ta.value; window.result.inserted = ta.value; });
+    } else {
+      slot.innerHTML = '<div id="editor" contenteditable="true"></div>';
+      const ed = document.getElementById("editor");
+      ed.addEventListener("paste", (e) => {
+        e.preventDefault();
+        ed.textContent = e.clipboardData.getData("text/plain");
+        window.result.inserted = ed.textContent;
+        // Like ChatGPT with a long paste: the send button enables a moment later.
+        setTimeout(() => { send.disabled = false; }, 700);
+      });
+    }
+    send.addEventListener("click", () => { window.result.sent = true; });
+
+    let handed = false;
+    window.chrome = {
+      runtime: {
+        sendMessage: async (msg) => {
+          if (msg.type !== "yts:take" || handed) return null;
+          handed = true;
+          return { text: "Summarize this YouTube video.\n\nTranscript:\n\"\"\"\n[0:00] hello\n\"\"\"", autoSend };
+        }
+      }
+    };
+  </script>
+  <script src="../extension/shared.js"></script>
+  <script>
+    // "enter" mode uses no known selectors, so the generic fallbacks are exercised.
+    self.YTS.aiForHost = () => mode === "enter"
+      ? { id: "test", name: "Test AI", editor: ["#nope"], send: [] }
+      : { id: "test", name: "Test AI", editor: ["#editor"], send: ["#send"] };
+  </script>
+  <script src="../extension/ai.js"></script>
+</body>
+</html>
