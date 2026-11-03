@@ -1,0 +1,28 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Popup harness</title>
+<script>
+  // Renders the real popup with stubbed chrome APIs. ?url= sets the active tab, ?loaded=0 simulates a stale tab.
+  // window.store holds saved settings; window.messages the messages sent to the tab.
+  const params = new URLSearchParams(location.search);
+  const store = {};
+  const messages = [];
+  window.chrome = {
+    storage: { sync: { get: async (d) => ({ ...d, ...store }), set: async (p) => Object.assign(store, p) } },
+    tabs: {
+      query: async () => [{ id: 1, url: params.get("url") || "https://www.youtube.com/watch?v=abc" }],
+      sendMessage: async (_id, msg) => {
+        if (params.get("loaded") === "0") throw new Error("no receiver");
+        messages.push(msg);
+        return { ok: true };
+      }
+    }
+  };
+  window.store = store;
+  window.messages = messages;
+  window.close = () => { window.closed = true; };
+  fetch("../extension/popup.html").then((r) => r.text()).then((html) => {
+    html = html.replace(/(href|src)="(?!http)([^"]+)"/g, '$1="../extension/$2"');
+    document.open(); document.write(html); document.close();
+  });
+</script>
