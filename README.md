@@ -62,6 +62,6 @@ The YouTube side was checked on live youtube.com pages, including moving between
 - Needs a video with captions (auto-generated ones count). Shorts and live streams aren't supported.
 - If an AI site changes its page, the paste can fail. When that happens, the prompt is also on your clipboard, so you can paste it yourself.
 
-## License
+## Copyright
 
-MIT
+© Ata Turhan. All rights reserved. This repository has no open-source license: its code may not be copied, modified or redistributed.

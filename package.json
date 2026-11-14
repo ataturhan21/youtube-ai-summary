@@ -7,5 +7,5 @@
     "test": "node --test test/*.test.js",
     "check": "node -e \"JSON.parse(require('fs').readFileSync('extension/manifest.json'))\" && node --check extension/shared.js && node --check extension/youtube.js && node --check extension/ai.js && node --check extension/background.js && node --check extension/popup.js"
   },
-  "license": "MIT"
+  "license": "UNLICENSED"
 }
